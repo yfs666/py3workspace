@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DB工具</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.staticfile.org/jquery/2.1.1/jquery.min.js"></script>
+    <script src="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+    <script src="https://oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
+</head>
+<body>
+<div class="float-left">
+
+</div>
+
+<div class="container-fiuled">
+    <div class="col-lg-3 pre-scrollable" style="height:280px;overflow:auto;">
+        <input type="text" class="form-control" id="table-name" placeholder="表名模糊查询">
+        <div id="show-tables"></div>
+    </div>
+    <div class="col-lg-6" style="height:280px;overflow:auto;">
+        <form role="form1">
+            <div class="form-group">
+                <label for="sqlContent">请输入sql语句</label>
+                <textarea class="form-control" rows="3" id="sqlContent"></textarea>
+                <button type="button" class="btn btn-primary" id="sqlExecute">执行</button>
+            </div>
+        </form>
+
+        <button type="button" class="btn sqlKeyWord btn-primary">select * from</button>
+        <button type="button" class="btn sqlKeyWord btn-danger">order by id desc</button>
+        <button type="button" class="btn sqlKeyWord btn-success">update</button>
+        <button type="button" class="btn sqlKeyWord btn-info">set</button>
+        <button type="button" class="btn sqlKeyWord btn-warning">delete from</button>
+
+        <button type="button" class="btn sqlKeyWord btn-primary">where</button>
+        <button type="button" class="btn sqlKeyWord btn-danger">limit</button>
+        <button type="button" class="btn sqlKeyWord btn-success">having</button>
+        <button type="button" class="btn sqlKeyWord btn-info">group by</button>
+        <button type="button" class="btn sqlKeyWord btn-warning">and</button>
+
+        <button type="button" class="btn sqlKeyWord btn-primary">or</button>
+        <button type="button" class="btn sqlKeyWord btn-danger">,</button>
+        <button type="button" class="btn sqlKeyWord btn-success">=</button>
+        <button type="button" class="btn sqlKeyWord btn-info">>=</button>
+        <button type="button" class="btn sqlKeyWord btn-warning"><=</button>
+
+        <button type="button" class="btn sqlKeyWord btn-primary">'</button>
+        <button type="button" class="btn sqlKeyWord btn-danger">2019-11</button>
+    </div>
+    <div class="col-lg-3" style="height:280px;overflow:auto;">
+        <span>以下是&nbsp;&nbsp;<span style="color:red; font-weight: bold;" id="selected-table"></span>&nbsp;&nbsp;的所有字段</span>
+        <div class="float-right" id="table-columns">
+
+        </div>
+    </div>
+
+</div>
+<table class="table table-bordered">
+    <caption>结果集</caption>
+    <thead>
+
+    </thead>
+    <tbody>
+    </tbody>
+</table>
+</body>
+</html>
+<script type="text/javascript">
+    var buttonTypes = ['btn-primary', 'btn-danger', 'btn-success', 'btn-info', 'btn-warning'];
+    $(document).ready(function () {
+        $("#updateConfirm").click(function () {
+            $("#exampleModal").hide();
+            $("#exampleModal").attr("tabindex",0);
+        });
+        $(".sqlKeyWord").click(function () {
+            var sqlKeyWord = $(this).text() + " ";
+            var sqlContent = $("#sqlContent").val();
+            sqlContent = sqlContent + sqlKeyWord;
+            $("#sqlContent").val(sqlContent);
+            $("#sqlContent").focus();
+        });
+        $("#sqlExecute").click(function () {
+            $.ajax(
+                {
+                    url: "/dbExecute",
+                    dataType: 'json',
+                    data: {"sqlContent": $("#sqlContent").val()},
+                    type: "POST",
+                    success: function (result) {
+                        if (result["type"] == "update") {
+                            alert("执行处理 " + result["updateCount"] + " 条数据");
+                        }
+
+                        if (result["type"] == "query") {
+                            var columnList = result['column'];
+                            console.log(columnList)
+                            $("thead").empty();
+                            var thStr = "<tr>";
+                            for (var i = 0; i < columnList.length; i++) {
+                                thStr = thStr + "<th>" + columnList[i] + "</th>"
+                            }
+                            thStr = thStr + "</tr>";
+                            $("thead").html(thStr);
+                            var dataList = result['dataList'];
+                            $("tbody").empty();
+                            for (var i = 0; i < dataList.length; i++) {
+                                var dataDetail = dataList[i];
+                                var trStr = "<tr>"
+                                for (var j = 0; j < columnList.length; j++) {
+                                    trStr = trStr + "<td>" + dataList[i][columnList[j]] + "</td>"
+                                }
+                                trStr = trStr + "</tr>"
+                                $("tbody").append(trStr);
+                            }
+
+                            $("td").bind('click',function () {
+                                updateColumn($(this));
+
+                            });
+
+                        }
+
+                    }
+                }
+            );
+
+        });
+
+        $.ajax(
+            {
+                url: "/queryTables",
+                dataType: 'json',
+                data: {"tableName": ""},
+                type: "POST",
+                success: function (result) {
+                    $("#show-tables").empty();
+                    for (var i = 0; i < result.length; i++) {
+                        var buttonCss = buttonTypes[i % buttonTypes.length];
+                        var buttonHtml = '<button type="button" class="btn-sm  ' + buttonCss + ' table-name" onclick="selectTable(\'' + result[i] + '\')">' + result[i] + '</button>';
+                        $("#show-tables").append(buttonHtml);
+                    }
+                }
+            }
+        );
+
+        $("#table-name").keyup(function () {
+            $(".table-name").each(function () {
+                if($(this).text().indexOf($("#table-name").val()) >= 0 ) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+            $("#table-name").val()
+        });
+    });
+
+
+    function selectTable(tableName) {
+        $("#selected-table").empty();
+        $("#selected-table").text(tableName);
+        var sqlContent = $("#sqlContent").val();
+        sqlContent = sqlContent + " " + tableName + " ";
+        $("#sqlContent").val(sqlContent);
+        $("#sqlContent").focus();
+        $.ajax(
+            {
+                url: "/queryColumns",
+                dataType: 'json',
+                data: {"tableName": $("#selected-table").text()},
+                type: "POST",
+                success: function (result) {
+                    $("#table-columns").empty();
+                    for (var i = 0; i < result.length; i++) {
+                        var buttonCss = buttonTypes[i % buttonTypes.length];
+                        var columnButtonHtml = '<button type="button" class="btn-sm ' + buttonCss + ' table-column" onclick="selectColumn(\'' + result[i] + '\')">' + result[i] + '</button>';
+                        $("#table-columns").append(columnButtonHtml);
+                    }
+
+                }
+            }
+        );
+    }
+
+    function selectColumn(columnName) {
+        var sqlContent = $("#sqlContent").val();
+        sqlContent = sqlContent + columnName + ", ";
+        $("#sqlContent").val(sqlContent);
+        $("#sqlContent").focus();
+    }
+
+    function updateColumn(td) {
+        var columnValue = $(td).text();
+        var updateInput = '<input type="text" class="form-control"  id="updateInput">';
+        var updateConfirmButton = '<button type="button" id="updateConfirmButton" class="btn-sm  btn-primary">确认</button>';
+        var updateCancelButton = '<button type="button" id="updateCancelButton" class="btn-sm  btn-primary">取消</button>';
+        $(td).html(updateInput + updateConfirmButton + updateCancelButton);
+        $("#updateInput").val(columnValue);
+        $(td).unbind('click');
+        $("#updateConfirmButton").click(function () {
+
+        });
+        $("#updateCancelButton").click(function () {
+            $(this).parent().text($("#updateInput").val());
+        });
+    }
+    
+</script>
